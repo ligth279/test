@@ -25,62 +25,60 @@
   </nav>
 
   <div class="container">
-<!-- Header Section -->
-<div class="header-section">
-  <div class="user-info">
-    <input type="text" id="user-name" value="" placeholder="Your Name" oninput="updateName(this.value)" />
-    <button class="edit-button" onclick="editProfile()">✏ Edit Profile</button>
-    <p>Location: <span id="user-location"></span></p>
-  </div>
-</div>
+    <!-- Header Section -->
+    <div class="header-section">
+      <div class="user-info">
+        <input type="text" id="user-name" value="" placeholder="Your Name" oninput="updateName(this.value)" />
+        <button class="edit-button" onclick="editProfile()">✏ Edit Profile</button>
+        <p>Location: <span id="user-location"></span></p>
+      </div>
+    </div>
 
-<script>
-  document.addEventListener("DOMContentLoaded", async function() {
-      // Retrieve the signed-in user's username from localStorage.
-      const storedUserName = localStorage.getItem("username");
-      if (!storedUserName) {
+    <script>
+      document.addEventListener("DOMContentLoaded", async function() {
+        // Retrieve the signed-in user's username from localStorage.
+        const storedUserName = localStorage.getItem("username");
+        if (!storedUserName) {
           console.log("No username found in localStorage.");
           return;
-      }
-  
-      try {
+        }
+
+        try {
           // Fetch user details from the backend.
           const userResponse = await fetch(`http://127.0.0.1:5000/user/${storedUserName}`);
           if (!userResponse.ok) {
-              console.error("Failed to fetch user details.");
-              return;
+            console.error("Failed to fetch user details.");
+            return;
           }
           const userData = await userResponse.json();
-  
+
           // Update the name field.
           document.getElementById("user-name").value = userData.username;
-  
+
           // Use the location_id from the user data to fetch location details.
           const locationID = userData.location_id;
           if (locationID) {
-              const locationResponse = await fetch(`http://127.0.0.1:5000/location/${locationID}`);
-              if (!locationResponse.ok) {
-                  console.error("Failed to fetch location details.");
-                  document.getElementById("user-location").innerText = "Location not found";
-                  return;
-              }
-              const locationData = await locationResponse.json();
-              // Update the location element with separate titles for locality, state, and country.
-              document.getElementById("user-location").innerHTML = 
-                  `Locality: ${locationData.location_name}<br>` +
-                  `State: ${locationData.state_name}<br>` +
-                  `Country: ${locationData.country_name}`;
+            const locationResponse = await fetch(`http://127.0.0.1:5000/location/${locationID}`);
+            if (!locationResponse.ok) {
+              console.error("Failed to fetch location details.");
+              document.getElementById("user-location").innerText = "Location not found";
+              return;
+            }
+            const locationData = await locationResponse.json();
+            // Update the location element with separate titles for locality, state, and country.
+            document.getElementById("user-location").innerHTML =
+              `Locality: ${locationData.location_name}<br>` +
+              `State: ${locationData.state_name}<br>` +
+              `Country: ${locationData.country_name}`;
           } else {
-              document.getElementById("user-location").innerText = "Location not set";
+            document.getElementById("user-location").innerText = "Location not set";
           }
-      } catch (error) {
+        } catch (error) {
           console.error("Error fetching user or location details:", error);
-      }
-  });
-  </script>
-  
-  
-  
+        }
+      });
+    </script>
+
     <!-- Bio Section -->
     <div class="bio-section">
       <h3>Bio</h3>
@@ -91,10 +89,7 @@
     <div class="preferences-section">
       <h3>Travel Preferences</h3>
       <div class="preferences-list">
-        <span class="preference" contenteditable="true" onblur="updatePreferences(this)">Hiking</span>
-        <span class="preference" contenteditable="true" onblur="updatePreferences(this)">Cultural Experiences</span>
-        <span class="preference" contenteditable="true" onblur="updatePreferences(this)">Beach</span>
-        <span class="preference" contenteditable="true" onblur="updatePreferences(this)">Adventure</span>
+        <!-- Dynamic travel preferences (user tags) will be inserted here -->
       </div>
     </div>
 
@@ -137,6 +132,54 @@
     </div>
   </div>
 
+  <!-- Inline JavaScript to dynamically populate Travel Preferences -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Retrieve the signed-in user's username from localStorage.
+      const username = localStorage.getItem("username");
+      if (!username) {
+        console.error("No username found in localStorage. Make sure the user is signed in.");
+        return;
+      }
+
+      // Construct the backend endpoint URL to fetch user tags.
+      const tagsEndpoint = `http://127.0.0.1:5000/user/${encodeURIComponent(username)}/tags`;
+
+      // Fetch the user's tags from the backend.
+      fetch(tagsEndpoint)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error("Failed to fetch user tags.");
+          }
+          return response.json();
+        })
+        .then(tags => {
+          // Get the container for travel preferences.
+          const preferencesList = document.querySelector('.preferences-list');
+          // Clear any existing content.
+          preferencesList.innerHTML = "";
+
+          // Create a span for each tag.
+          tags.forEach(tagObj => {
+            const span = document.createElement("span");
+            span.classList.add("preference");
+            // Optionally, allow the span to be edited.
+            span.contentEditable = "true";
+            // Call updatePreferences when the element loses focus (assuming updatePreferences is defined).
+            span.setAttribute("onblur", "updatePreferences(this)");
+            // Set the text content to the tag name (assuming tagObj.tag holds the tag string).
+            span.textContent = tagObj.tag;
+            // Append the span to the preferences list.
+            preferencesList.appendChild(span);
+          });
+        })
+        .catch(error => {
+          console.error("Error fetching user tags:", error);
+        });
+    });
+  </script>
+
+  <!-- External script file (if you have additional functions such as updatePreferences) -->
   <script src="script.js"></script>
 </body>
 

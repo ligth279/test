@@ -5,9 +5,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
 from passlib.context import CryptContext
-from models import User, Location,State,TravelData
+from models import User, Location,State,TravelData,Tag, UserTags
 from main import engine  
 import uvicorn
+from typing import List
 
 # FastAPI app setup
 app = FastAPI()
@@ -110,6 +111,17 @@ class location_db(BaseModel):
     class Config:
         from_attribute = True
 
+class UserTagsInput(BaseModel):
+    username: str
+    tags: List[str]
+
+
+class TagOut(BaseModel):
+    tags_id: int
+    tag: str
+
+    class Config:
+        orm_mode = True
         
 # Dependency to get the database session
 def get_db():
@@ -276,9 +288,9 @@ def location_add(country: str, state: str, location: str, db: Session = Depends(
 
 
 
-@app.get("/user/{user_id}")
-async def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username_id == user_id).first()
+@app.get("/user/{username}")
+async def get_user(username: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == username).first()
     print(user)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -324,10 +336,28 @@ async def travel_data(user_id: int, db: Session = Depends(get_db)):
 
 @app.get("/location/{location_id}")
 async def get_location(location_id: int, db: Session = Depends(get_db)):
+    # Retrieve the location record from the database.
     location = db.query(Location).filter(Location.location_id == location_id).first()
     if not location:
         raise HTTPException(status_code=404, detail="Location not found")
-    return location
+    
+    # Retrieve the state details using the location's state_id.
+    state_record = db.query(State).filter(State.state_id == location.state_id).first()
+    
+    # Build the response dictionary with the location info.
+    response_data = {
+         "location_id": location.location_id,
+         "location_name": location.location_name,
+         "state_id": location.state_id,
+    }
+    
+    # If state information exists, add the state name and country name.
+    if state_record:
+         # Use the appropriate attribute names; adjust if your model uses different names.
+         response_data["state_name"] = state_record.state_name
+         response_data["country_name"] = state_record.country_name
+    
+    return response_data
 
 
 @app.get("/passcheck/{username}/{password}")
@@ -377,6 +407,55 @@ async def get_profile_pic(user_id: int, db: Session = Depends(get_db)):
         return Response(content=user.profile_pic, media_type="image/jpeg")
     raise HTTPException(status_code=404, detail="Profile picture not found")
 #probably will remian like that for a long time!!!!
+
+
+@app.post("/user/tags")
+async def add_user_tags(user_tags_input: UserTagsInput, db: Session = Depends(get_db)):
+    # Check if the user exists
+    user = db.query(User).filter(User.username == user_tags_input.username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    added_tags = []
+    
+    # Iterate over each tag provided from the frontend
+    for tag_str in user_tags_input.tags:
+        # Check if the tag already exists in the Tag table
+        tag = db.query(Tag).filter(Tag.tag == tag_str).first()
+        if not tag:
+            # If the tag does not exist, create a new Tag record
+            tag = Tag(tag=tag_str)
+            db.add(tag)
+            db.commit()  # Commit so the tag gets an ID
+            db.refresh(tag)
+        
+        # Check if the user already has this tag associated
+        association = (
+            db.query(UserTags)
+            .filter(UserTags.username_id == user.username_id, UserTags.tags_id == tag.tags_id)
+            .first()
+        )
+        
+        if not association:
+            # Create the association between the user and the tag
+            user_tag_assoc = UserTags(username_id=user.username_id, tags_id=tag.tags_id)
+            db.add(user_tag_assoc)
+            added_tags.append(tag_str)
+    
+    db.commit()  # Commit all associations
+    
+    return {"message": "Tags added successfully", "added_tags": added_tags}
+
+@app.get("/user/{username}/tags", response_model=List[TagOut])
+async def get_user_tags(username: str, db: Session = Depends(get_db)):
+    # Query the user by username.
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Return the list of tags associated with the user.
+    # The relationship "tags" should be defined in the User model (using secondary=UserTags).
+    return user.tags
 #
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)

@@ -329,7 +329,7 @@
 
   <!-- JavaScript for dynamic travel history -->
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
+    function updateTravelHistory() {
       // Retrieve the username_id from localStorage.
       const username_id = localStorage.getItem("username_id");
       if (!username_id) {
@@ -396,35 +396,39 @@
               <p>Back Date: ${plan.backdate}</p>
             `;
             card.appendChild(details);
-            // Attach event to card: when clicked, toggle details on all cards.
+            // Attach event to card so that clicking one toggles details for all cards.
             card.addEventListener("click", () => {
-              const allDetails = document.querySelectorAll('.activity-card .details');
-              // Determine if we should open or close: if any detail is hidden, open all.
-              let shouldOpen = false;
+              const allDetails = document.querySelectorAll(".activity-card .details");
+              let openAll = false;
+              // If at least one card is hidden, then open all.
               allDetails.forEach(detail => {
                 if (detail.style.display === "none") {
-                  shouldOpen = true;
+                  openAll = true;
                 }
               });
               allDetails.forEach(detail => {
-                detail.style.display = shouldOpen ? "block" : "none";
+                detail.style.display = openAll ? "block" : "none";
               });
             });
-            // Fetch start and destination location names using Promise.all.
+            // Use Promise.all to fetch both start and destination location names.
             Promise.all([
               fetch(`http://127.0.0.1:5000/location/${plan.start_location}`).then(res => res.json()),
               fetch(`http://127.0.0.1:5000/location/${plan.destination}`).then(res => res.json())
             ])
-            .then(([startLocData, destLocData]) => {
-              summary.textContent = `From: ${startLocData.location_name} To: ${destLocData.location_name}`;
-            })
-            .catch(err => console.error("Error fetching location names:", err));
+              .then(([startLocData, destLocData]) => {
+                summary.textContent = `From: ${startLocData.location_name} To: ${destLocData.location_name}`;
+              })
+              .catch(err => console.error("Error fetching location names:", err));
             activityCardsContainer.appendChild(card);
           });
         })
         .catch(error => {
           console.error("Error fetching travel history:", error);
         });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      updateTravelHistory();
     });
   </script>
 
@@ -476,7 +480,8 @@
         if (response.ok) {
           alert("Travel plan submitted successfully!");
           closeTravelPlanModal();
-          // Optionally, refresh the travel history after submission.
+          // Refresh the travel history without reloading the page.
+          updateTravelHistory();
         } else {
           const errorData = await response.json();
           alert("Error submitting travel plan: " + errorData.detail);

@@ -111,7 +111,7 @@
       <div class="user-info">
         <input type="text" id="user-name" value="" placeholder="Your Name" oninput="updateName(this.value)" />
         <button class="edit-button" onclick="editProfile()">✏ Edit Profile</button>
-        <p>Location: <span id="user-location"></span></p>
+        <p><span id="user-location"></span></p>
       </div>
     </div>
 
@@ -396,11 +396,11 @@
               <p>Back Date: ${plan.backdate}</p>
             `;
             card.appendChild(details);
-            // Attach click event to toggle details for all cards.
+            // When any card is clicked, toggle details for all cards.
             card.addEventListener("click", () => {
               const allDetails = document.querySelectorAll(".activity-card .details");
               let openAll = false;
-              // If any details are hidden, open all.
+              // If at least one details section is hidden, open all.
               allDetails.forEach(detail => {
                 if (detail.style.display === "none") {
                   openAll = true;
@@ -426,7 +426,11 @@
           console.error("Error fetching travel history:", error);
         });
     }
+    // Call updateTravelHistory on page load and on pageshow to ensure fresh data.
     document.addEventListener("DOMContentLoaded", () => {
+      updateTravelHistory();
+    });
+    window.addEventListener("pageshow", () => {
       updateTravelHistory();
     });
   </script>
